@@ -1,12 +1,16 @@
 package extractor
 
+type ExtractorProperties struct {
+	EtherscanKey string
+	ApiURL       string
+}
+
 type Extractor interface {
-	loadAPIKey()
-	findContractSource(string) string
+	FindContractSource(string) (string, string, error)
 }
 
 type ContractSourceResponse struct {
-	Status  int    `json:"status"`
+	Status  string `json:"status"`
 	Message string `json:"message"`
 	Result  []struct {
 		SourceCode       string `json:"SourceCode"`
