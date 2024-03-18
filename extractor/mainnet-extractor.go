@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 )
 
 type MainNetExtractor struct {
@@ -19,15 +21,25 @@ func CreateMainNetExtractor() Extractor {
 }
 
 func (extractor *MainNetExtractor) FindContractSource(contractAddress string) (string, string, error) {
-	url := fmt.Sprintf("%s?module=contract&action=getsourcecode&address=%s&apikey=%s",
-		extractor.properties.ApiURL,
-		contractAddress,
-		extractor.properties.EtherscanKey)
+	payload := url.Values{}
+	payload.Set("module", "contract")
+	payload.Set("action", "getsourcecode")
+	payload.Set("address", contractAddress)
+	payload.Set("usernapikeyame", extractor.properties.EtherscanKey)
 
-	res, err := http.Get(url)
+	r, err := http.NewRequest(http.MethodPost, extractor.properties.ApiURL, strings.NewReader(payload.Encode()))
 	if err != nil {
 		return "", "", err
 	}
+
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return "", "", err
+	}
+
 	defer res.Body.Close()
 
 	var resBody ContractSourceResponse
