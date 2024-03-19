@@ -28,4 +28,11 @@ func main() {
 	} else {
 		os.WriteFile(fmt.Sprintf("./%s.sol", name), []byte(source), 0644)
 	}
+
+	deployer, err := extractor.FindDeployerAddress(test_address)
+	if err != nil {
+		panic(err)
+	} else {
+		fmt.Println(deployer)
+	}
 }

@@ -1,12 +1,8 @@
 package extractor
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
-	"strings"
 )
 
 type MainNetExtractor struct {
@@ -21,33 +17,21 @@ func CreateMainNetExtractor() Extractor {
 }
 
 func (extractor *MainNetExtractor) FindContractSource(contractAddress string) (string, string, error) {
-	payload := url.Values{}
-	payload.Set("module", "contract")
-	payload.Set("action", "getsourcecode")
-	payload.Set("address", contractAddress)
-	payload.Set("usernapikeyame", extractor.properties.EtherscanKey)
 
-	r, err := http.NewRequest(http.MethodPost, extractor.properties.ApiURL, strings.NewReader(payload.Encode()))
+	params := make(RequestParams)
+	params["module"] = "contract"
+	params["action"] = "getsourcecode"
+	params["address"] = contractAddress
+	params["userapikey"] = extractor.properties.EtherscanKey
+
+	resBody := &ContractSourceResponse{}
+	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+
 	if err != nil {
 		return "", "", err
 	}
 
-	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	res, err := client.Do(r)
-	if err != nil {
-		return "", "", err
-	}
-
-	defer res.Body.Close()
-
-	var resBody ContractSourceResponse
-	if err := json.NewDecoder(res.Body).Decode(&resBody); err != nil {
-		return "", "", err
-	}
-
-	if resBody.Status != "1" {
+	if resBody.IsSuccessful() {
 		return "", "", fmt.Errorf(resBody.Message)
 	}
 
@@ -56,4 +40,29 @@ func (extractor *MainNetExtractor) FindContractSource(contractAddress string) (s
 	}
 
 	return resBody.Result[0].ContractName, resBody.Result[0].SourceCode, nil
+}
+
+func (extractor *MainNetExtractor) FindDeployerAddress(contractAddress string) (string, error) {
+	params := make(RequestParams)
+	params["module"] = "contract"
+	params["action"] = "getcontractcreation"
+	params["contractaddresses"] = contractAddress
+	params["userapikey"] = extractor.properties.EtherscanKey
+
+	resBody := &ContractDeployerResponse{}
+	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+
+	if err != nil {
+		return "", err
+	}
+
+	if resBody.IsSuccessful() {
+		return "", fmt.Errorf(resBody.Message)
+	}
+
+	if len(resBody.Result) == 0 {
+		return "", fmt.Errorf("address has no contract source")
+	}
+
+	return resBody.Result[0].ContractCreator, nil
 }
