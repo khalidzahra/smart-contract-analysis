@@ -3,6 +3,7 @@ package extractor
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,6 +19,7 @@ type ExtractorProperties struct {
 type Extractor interface {
 	FindContractSource(string) (string, string, error)
 	FindDeployerAddress(string) (string, error)
+	FindAllTransactions(string) ([]Transaction, error)
 }
 
 type DefaultExtractor struct {
@@ -26,6 +28,24 @@ type DefaultExtractor struct {
 
 type ExtractorResponse interface {
 	IsSuccessful() bool
+}
+
+type Transaction struct {
+	BlockNumber       string `json:"blockNumber"`
+	TimeStamp         string `json:"timeStamp"`
+	Hash              string `json:"hash"`
+	Nonce             string `json:"nonce"`
+	BlockHash         string `json:"blockHash"`
+	TransactionIndex  string `json:"transactionIndex"`
+	From              string `json:"from"`
+	To                string `json:"to"`
+	Value             string `json:"value"`
+	Gas               string `json:"gas"`
+	GasPrice          string `json:"gasPrice"`
+	Input             string `json:"input"`
+	ContractAddress   string `json:"contractAddress"`
+	CumulativeGasUsed string `json:"cumulativeGasUsed"`
+	Confirmations     string `json:"confirmations"`
 }
 
 type ContractSourceResponse struct {
@@ -55,6 +75,12 @@ type ContractDeployerResponse struct {
 		ContractCreator string `json:"contractCreator"`
 		TxHash          string `json:"txHash"`
 	} `json:"result"`
+}
+
+type AddressTransactionsResponse struct {
+	Status  string        `json:"status"`
+	Message string        `json:"message"`
+	Result  []Transaction `json:"result"`
 }
 
 func ExecuteRequest(requestURL string, params RequestParams, extractorRes ExtractorResponse) error {
@@ -90,6 +116,10 @@ func (res *ContractSourceResponse) IsSuccessful() bool {
 }
 
 func (res *ContractDeployerResponse) IsSuccessful() bool {
+	return res.Message == "1"
+}
+
+func (res *AddressTransactionsResponse) IsSuccessful() bool {
 	return res.Message == "1"
 }
 
@@ -142,4 +172,31 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	}
 
 	return resBody.Result[0].ContractCreator, nil
+}
+
+func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transaction, error) {
+	params := make(RequestParams)
+	params["module"] = "account"
+	params["action"] = "txlist"
+	params["address"] = address
+	params["startblock"] = "0"
+	params["endblock"] = string(math.MaxInt32)
+	params["userapikey"] = extractor.properties.EtherscanKey
+
+	resBody := &AddressTransactionsResponse{}
+	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resBody.IsSuccessful() {
+		return nil, fmt.Errorf(resBody.Message)
+	}
+
+	if len(resBody.Result) == 0 {
+		return nil, fmt.Errorf("address has no contract source")
+	}
+
+	return resBody.Result, nil
 }

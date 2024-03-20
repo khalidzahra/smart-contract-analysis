@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/khalidzahra/smart-contract-analysis/extractor"
@@ -34,5 +35,16 @@ func main() {
 		panic(err)
 	} else {
 		fmt.Println(deployer)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	transactions, err := extractor.FindAllTransactions(deployer)
+	if err != nil {
+		panic(err)
+	} else {
+		for _, transaction := range transactions {
+			fmt.Printf("Transaction from %s to %s\n", transaction.From, transaction.To)
+		}
 	}
 }
