@@ -30,6 +30,8 @@ func main() {
 		os.WriteFile(fmt.Sprintf("./%s.sol", name), []byte(source), 0644)
 	}
 
+	time.Sleep(5 * time.Second)
+
 	deployer, err := extractor.FindDeployerAddress(test_address)
 	if err != nil {
 		panic(err)
@@ -46,5 +48,10 @@ func main() {
 		for _, transaction := range transactions {
 			fmt.Printf("Transaction from %s to %s\n", transaction.From, transaction.To)
 		}
+	}
+
+	creationTrans := extractor.FindCreationTransactions(transactions)
+	for _, transaction := range creationTrans {
+		fmt.Println(transaction.ContractAddress)
 	}
 }

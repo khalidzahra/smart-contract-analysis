@@ -20,6 +20,7 @@ type Extractor interface {
 	FindContractSource(string) (string, string, error)
 	FindDeployerAddress(string) (string, error)
 	FindAllTransactions(string) ([]Transaction, error)
+	FindCreationTransactions([]Transaction) []Transaction
 }
 
 type DefaultExtractor struct {
@@ -199,4 +200,14 @@ func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transa
 	}
 
 	return resBody.Result, nil
+}
+
+func (extractor *DefaultExtractor) FindCreationTransactions(transactions []Transaction) []Transaction {
+	creationTransactions := make([]Transaction, 0)
+	for _, transaction := range transactions {
+		if transaction.ContractAddress != "" {
+			creationTransactions = append(creationTransactions, transaction)
+		}
+	}
+	return creationTransactions
 }
