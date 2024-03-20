@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -181,7 +182,7 @@ func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transa
 	params["action"] = "txlist"
 	params["address"] = address
 	params["startblock"] = "0"
-	params["endblock"] = string(math.MaxInt32)
+	params["endblock"] = strconv.Itoa(math.MaxInt32)
 	params["userapikey"] = extractor.properties.EtherscanKey
 
 	resBody := &AddressTransactionsResponse{}

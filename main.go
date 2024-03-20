@@ -50,8 +50,16 @@ func main() {
 		}
 	}
 
+	time.Sleep(5 * time.Second)
+
 	creationTrans := extractor.FindCreationTransactions(transactions)
-	for _, transaction := range creationTrans {
-		fmt.Println(transaction.ContractAddress)
+	for i, transaction := range creationTrans {
+		name, source, err := extractor.FindContractSource(transaction.ContractAddress)
+		if err != nil {
+			panic(err)
+		} else {
+			os.WriteFile(fmt.Sprintf("./%sV%d.sol", name, i), []byte(source), 0644)
+		}
+		time.Sleep(5 * time.Second)
 	}
 }
