@@ -19,6 +19,7 @@ type ExtractorProperties struct {
 
 type Extractor interface {
 	FindContractSource(string) (string, string, error)
+	FindContractProperties(string) (ContractProperties, error)
 	FindDeployerAddress(string) (string, error)
 	FindAllTransactions(string) ([]Transaction, error)
 	FindCreationTransactions([]Transaction) []Transaction
@@ -50,23 +51,25 @@ type Transaction struct {
 	Confirmations     string `json:"confirmations"`
 }
 
+type ContractProperties struct {
+	SourceCode       string `json:"SourceCode"`
+	ABI              string `json:"ABI"`
+	ContractName     string `json:"ContractName"`
+	CompilerVersion  string `json:"CompilerVersion"`
+	OptimizationUsed string `json:"OptimizationUsed"`
+	Runs             string `json:"Runs"`
+	ConstructorArgs  string `json:"ConstructorArguments"`
+	EVMVersion       string `json:"EVMVersion"`
+	Library          string `json:"Library"`
+	LicenseType      string `json:"LicenseType"`
+	Proxy            string `json:"Proxy"`
+	Implementation   string `json:"Implementation"`
+}
+
 type ContractSourceResponse struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	Result  []struct {
-		SourceCode       string `json:"SourceCode"`
-		ABI              string `json:"ABI"`
-		ContractName     string `json:"ContractName"`
-		CompilerVersion  string `json:"CompilerVersion"`
-		OptimizationUsed string `json:"OptimizationUsed"`
-		Runs             string `json:"Runs"`
-		ConstructorArgs  string `json:"ConstructorArguments"`
-		EVMVersion       string `json:"EVMVersion"`
-		Library          string `json:"Library"`
-		LicenseType      string `json:"LicenseType"`
-		Proxy            string `json:"Proxy"`
-		Implementation   string `json:"Implementation"`
-	} `json:"result"`
+	Status  string               `json:"status"`
+	Message string               `json:"message"`
+	Result  []ContractProperties `json:"result"`
 }
 
 type ContractDeployerResponse struct {
@@ -125,8 +128,7 @@ func (res *AddressTransactionsResponse) IsSuccessful() bool {
 	return res.Message == "1"
 }
 
-func (extractor *DefaultExtractor) FindContractSource(contractAddress string) (string, string, error) {
-
+func (extractor *DefaultExtractor) FindContractProperties(contractAddress string) (*ContractProperties, error) {
 	params := make(RequestParams)
 	params["module"] = "contract"
 	params["action"] = "getsourcecode"
@@ -137,18 +139,29 @@ func (extractor *DefaultExtractor) FindContractSource(contractAddress string) (s
 	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
 
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	if resBody.IsSuccessful() {
-		return "", "", fmt.Errorf(resBody.Message)
+		return nil, fmt.Errorf(resBody.Message)
 	}
 
 	if len(resBody.Result) == 0 {
-		return "", "", fmt.Errorf("address has no contract source")
+		return nil, fmt.Errorf("address has no contract source")
 	}
 
-	return resBody.Result[0].ContractName, resBody.Result[0].SourceCode, nil
+	return &resBody.Result[0], nil
+}
+
+func (extractor *DefaultExtractor) FindContractSource(contractAddress string) (string, string, error) {
+
+	props, err := extractor.FindContractProperties(contractAddress)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return props.ContractName, props.SourceCode, nil
 }
 
 func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (string, error) {
