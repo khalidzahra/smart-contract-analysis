@@ -32,34 +32,4 @@ func main() {
 
 	time.Sleep(5 * time.Second)
 
-	deployer, err := extractor.FindDeployerAddress(test_address)
-	if err != nil {
-		panic(err)
-	} else {
-		fmt.Println(deployer)
-	}
-
-	time.Sleep(5 * time.Second)
-
-	transactions, err := extractor.FindAllTransactions(deployer)
-	if err != nil {
-		panic(err)
-	} else {
-		for _, transaction := range transactions {
-			fmt.Printf("Transaction from %s to %s\n", transaction.From, transaction.To)
-		}
-	}
-
-	time.Sleep(5 * time.Second)
-
-	creationTrans := extractor.FindCreationTransactions(transactions)
-	for i, transaction := range creationTrans {
-		name, source, err := extractor.FindContractSource(transaction.ContractAddress)
-		if err != nil {
-			panic(err)
-		} else {
-			os.WriteFile(fmt.Sprintf("./%sV%d.sol", name, i), []byte(source), 0644)
-		}
-		time.Sleep(5 * time.Second)
-	}
 }
