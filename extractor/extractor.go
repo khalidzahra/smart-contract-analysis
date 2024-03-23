@@ -3,7 +3,6 @@ package extractor
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -161,8 +160,6 @@ func (extractor *DefaultExtractor) FindContractProperties(contractAddress string
 	resBody := &ContractSourceResponse{}
 	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
 
-	logging.Logger.Println(resBody.Message)
-
 	if err != nil {
 		return nil, err
 	}
@@ -214,32 +211,41 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	return resBody.Result[0].ContractCreator, nil
 }
 
-// TODO implement a workaround for etherscan 10000 limit
 func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transaction, error) {
-	params := make(RequestParams)
-	params["module"] = "account"
-	params["action"] = "txlist"
-	params["address"] = address
-	params["startblock"] = "0"
-	params["endblock"] = strconv.Itoa(math.MaxInt32)
-	params["apikey"] = extractor.properties.EtherscanKey
+	var allTransactions []Transaction
 
-	resBody := &AddressTransactionsResponse{}
-	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	startBlock := 0
 
-	if err != nil {
-		return nil, err
+	for {
+		params := make(RequestParams)
+		params["module"] = "account"
+		params["action"] = "txlist"
+		params["address"] = address
+		params["startblock"] = strconv.Itoa(startBlock)
+		params["sort"] = "asc"
+		params["apikey"] = extractor.properties.EtherscanKey
+
+		resBody := &AddressTransactionsResponse{}
+		err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+		if err != nil {
+			return nil, err
+		}
+
+		allTransactions = append(allTransactions, resBody.Result...)
+
+		if len(resBody.Result) < 10000 {
+			break
+		}
+
+		lastBlock, err := strconv.Atoi(resBody.Result[len(resBody.Result)-1].BlockNumber)
+		if err != nil {
+			return nil, err
+		}
+
+		startBlock = lastBlock + 1
 	}
 
-	if !resBody.IsSuccessful() {
-		return nil, fmt.Errorf(resBody.Message)
-	}
-
-	if len(resBody.Result) == 0 {
-		return nil, fmt.Errorf("address has no contract source")
-	}
-
-	return resBody.Result, nil
+	return allTransactions, nil
 }
 
 func (extractor *DefaultExtractor) FindCreationTransactions(transactions []Transaction) []Transaction {
