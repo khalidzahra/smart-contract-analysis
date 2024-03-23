@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/khalidzahra/smart-contract-analysis/logging"
 )
 
 type RequestParams map[string]string
@@ -108,6 +110,7 @@ func ExecuteRequest(requestURL string, params RequestParams, extractorRes Extrac
 		return err
 	}
 
+	logging.Logger.Printf("Hit %s with parameters %+v", requestURL, params)
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(extractorRes); err != nil {
@@ -133,7 +136,7 @@ func (extractor *DefaultExtractor) FindContractProperties(contractAddress string
 	params["module"] = "contract"
 	params["action"] = "getsourcecode"
 	params["address"] = contractAddress
-	params["userapikey"] = extractor.properties.EtherscanKey
+	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractSourceResponse{}
 	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
@@ -169,7 +172,7 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	params["module"] = "contract"
 	params["action"] = "getcontractcreation"
 	params["contractaddresses"] = contractAddress
-	params["userapikey"] = extractor.properties.EtherscanKey
+	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractDeployerResponse{}
 	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
@@ -189,6 +192,7 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	return resBody.Result[0].ContractCreator, nil
 }
 
+// TODO implement a workaround for etherscan 10000 limit
 func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transaction, error) {
 	params := make(RequestParams)
 	params["module"] = "account"
@@ -196,7 +200,7 @@ func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transa
 	params["address"] = address
 	params["startblock"] = "0"
 	params["endblock"] = strconv.Itoa(math.MaxInt32)
-	params["userapikey"] = extractor.properties.EtherscanKey
+	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &AddressTransactionsResponse{}
 	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
