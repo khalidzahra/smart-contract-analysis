@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/khalidzahra/smart-contract-analysis/logging"
 )
@@ -20,8 +19,9 @@ type MainNetExtractor struct {
 
 func CreateMainNetExtractor() *MainNetExtractor {
 	extractor := &MainNetExtractor{
-		InputPath: os.Getenv("INPUT_DATASET_PATH"),
-		OutPath:   os.Getenv("OUTPUT_DATASET_PATH"),
+		DefaultExtractor: *CreateDefaultExtractor(),
+		InputPath:        os.Getenv("INPUT_DATASET_PATH"),
+		OutPath:          os.Getenv("OUTPUT_DATASET_PATH"),
 	}
 	extractor.properties.ApiURL = os.Getenv("MAIN_NET_URL")
 	extractor.properties.EtherscanKey = os.Getenv("ETHERSCAN_API_KEY")
@@ -32,27 +32,23 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 	logging.Logger.Printf("Finding properties for contract with address %s", address)
 	ogProps, err := extractor.FindContractProperties(address)
 	if err != nil {
-		time.Sleep(5 * time.Second)
+		logging.Logger.Fatal(err)
 		return
 	}
-
-	time.Sleep(5 * time.Second)
 
 	logging.Logger.Printf("Finding deployer for contract with address %s", address)
 	deployer, err := extractor.FindDeployerAddress(address)
 	if err != nil {
-		panic(err)
+		logging.Logger.Fatal(err)
+		return
 	}
-
-	time.Sleep(5 * time.Second)
 
 	logging.Logger.Printf("Finding all transactions for address %s", deployer)
 	transactions, err := extractor.FindAllTransactions(deployer)
 	if err != nil {
-		panic(err)
+		logging.Logger.Fatal(err)
+		return
 	}
-
-	time.Sleep(5 * time.Second)
 
 	logging.Logger.Printf("Finding creation transactions for %s", deployer)
 	creationTrans := extractor.FindCreationTransactions(transactions)
@@ -61,13 +57,14 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 		logging.Logger.Printf("Finding properties for contract with address %s", transaction.ContractAddress)
 		foundProps, err := extractor.FindContractProperties(transaction.ContractAddress)
 
-		if err != nil || foundProps.ContractName != ogProps.ContractName {
-			fmt.Println(foundProps.ContractName, ogProps.ContractName)
-			time.Sleep(5 * time.Second)
+		if err != nil {
+			logging.Logger.Fatal(err)
 			continue
 		}
 
-		time.Sleep(5 * time.Second)
+		if foundProps.ContractName != ogProps.ContractName { // Only interested in contracts with the same name
+			continue
+		}
 
 		name, source, err := extractor.FindContractSource(transaction.ContractAddress)
 		if err != nil {
@@ -82,7 +79,6 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 				os.WriteFile(outPath, []byte(source), 0644)
 			}
 		}
-		time.Sleep(5 * time.Second)
 	}
 }
 

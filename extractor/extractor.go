@@ -10,7 +10,12 @@ import (
 	"strings"
 
 	"github.com/khalidzahra/smart-contract-analysis/logging"
+	"github.com/khalidzahra/smart-contract-analysis/request"
 )
+
+const RATE_LIMIT int = 5
+
+var requestManager *request.RequestManager = nil
 
 type RequestParams map[string]string
 
@@ -28,7 +33,8 @@ type Extractor interface {
 }
 
 type DefaultExtractor struct {
-	properties ExtractorProperties
+	requestManager request.RequestManager
+	properties     ExtractorProperties
 }
 
 type ExtractorResponse interface {
@@ -90,7 +96,16 @@ type AddressTransactionsResponse struct {
 	Result  []Transaction `json:"result"`
 }
 
-func ExecuteRequest(requestURL string, params RequestParams, extractorRes ExtractorResponse) error {
+func CreateDefaultExtractor() *DefaultExtractor {
+	if requestManager == nil {
+		requestManager = request.NewRequestManager(RATE_LIMIT)
+	}
+	return &DefaultExtractor{
+		requestManager: *requestManager,
+	}
+}
+
+func (extractor *DefaultExtractor) ExecuteRequest(requestURL string, params RequestParams, extractorRes ExtractorResponse) error {
 	payload := url.Values{}
 
 	for k, v := range params {
@@ -105,10 +120,15 @@ func ExecuteRequest(requestURL string, params RequestParams, extractorRes Extrac
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{}
+
+	extractor.requestManager.Try()
+
 	res, err := client.Do(r)
 	if err != nil {
 		return err
 	}
+
+	extractor.requestManager.UpdateAccess()
 
 	logging.Logger.Printf("Hit %s with parameters %+v", requestURL, params)
 	defer res.Body.Close()
@@ -120,15 +140,15 @@ func ExecuteRequest(requestURL string, params RequestParams, extractorRes Extrac
 }
 
 func (res *ContractSourceResponse) IsSuccessful() bool {
-	return res.Message == "1"
+	return res.Status == "1"
 }
 
 func (res *ContractDeployerResponse) IsSuccessful() bool {
-	return res.Message == "1"
+	return res.Status == "1"
 }
 
 func (res *AddressTransactionsResponse) IsSuccessful() bool {
-	return res.Message == "1"
+	return res.Status == "1"
 }
 
 func (extractor *DefaultExtractor) FindContractProperties(contractAddress string) (*ContractProperties, error) {
@@ -139,13 +159,15 @@ func (extractor *DefaultExtractor) FindContractProperties(contractAddress string
 	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractSourceResponse{}
-	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+
+	logging.Logger.Println(resBody.Message)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if resBody.IsSuccessful() {
+	if !resBody.IsSuccessful() {
 		return nil, fmt.Errorf(resBody.Message)
 	}
 
@@ -175,13 +197,13 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractDeployerResponse{}
-	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
 
 	if err != nil {
 		return "", err
 	}
 
-	if resBody.IsSuccessful() {
+	if !resBody.IsSuccessful() {
 		return "", fmt.Errorf(resBody.Message)
 	}
 
@@ -203,13 +225,13 @@ func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transa
 	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &AddressTransactionsResponse{}
-	err := ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if resBody.IsSuccessful() {
+	if !resBody.IsSuccessful() {
 		return nil, fmt.Errorf(resBody.Message)
 	}
 
