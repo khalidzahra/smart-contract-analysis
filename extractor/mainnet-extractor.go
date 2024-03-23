@@ -71,7 +71,7 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 			panic(err)
 		} else {
 			if len(source) > 0 {
-				outPath := fmt.Sprintf("%s/mainnet/%s_V%d.sol", extractor.OutPath, name, version)
+				outPath := fmt.Sprintf("%s/mainnet/%s/%s_%s_V%d.sol", extractor.OutPath, name, transaction.ContractAddress, name, version)
 				version++
 				if err := os.MkdirAll(filepath.Dir(outPath), 0770); err != nil {
 					panic(err)
