@@ -12,8 +12,10 @@ import (
 	"github.com/khalidzahra/smart-contract-analysis/request"
 )
 
+// Rate in calls per second
 const RATE_LIMIT int = 5
 
+// Global RequestManager to be used by all extractors
 var requestManager *request.RequestManager = nil
 
 type RequestParams map[string]string
@@ -29,6 +31,8 @@ type Extractor interface {
 	FindDeployerAddress(string) (string, error)
 	FindAllTransactions(string) ([]Transaction, error)
 	FindCreationTransactions([]Transaction) []Transaction
+	IsCreationTransaction(Transaction) bool
+	IsContractAddress(string) bool
 }
 
 type DefaultExtractor struct {
@@ -93,6 +97,15 @@ type AddressTransactionsResponse struct {
 	Status  string        `json:"status"`
 	Message string        `json:"message"`
 	Result  []Transaction `json:"result"`
+}
+
+type Source struct {
+	Content string `json:"content"`
+}
+
+type ContractData struct {
+	Language string            `json:"language"`
+	Sources  map[string]Source `json:"sources"`
 }
 
 func CreateDefaultExtractor() *DefaultExtractor {
@@ -183,7 +196,17 @@ func (extractor *DefaultExtractor) FindContractSource(contractAddress string) (s
 		panic(err)
 	}
 
-	return props.ContractName, props.SourceCode, nil
+	var contractData ContractData
+	if err := json.Unmarshal([]byte(props.SourceCode), &contractData); err != nil {
+		return props.ContractName, props.SourceCode, nil
+	}
+
+	var merged string
+	for _, source := range contractData.Sources {
+		merged += source.Content + "\n"
+	}
+
+	return props.ContractName, merged, nil
 }
 
 func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (string, error) {
@@ -256,4 +279,8 @@ func (extractor *DefaultExtractor) FindCreationTransactions(transactions []Trans
 		}
 	}
 	return creationTransactions
+}
+
+func (extractor *DefaultExtractor) IsCreationTransaction(transaction Transaction) bool {
+	return transaction.ContractAddress != ""
 }

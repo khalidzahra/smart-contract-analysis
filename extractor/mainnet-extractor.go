@@ -50,31 +50,62 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 		return
 	}
 
-	logging.Logger.Printf("Finding creation transactions for %s", deployer)
-	creationTrans := extractor.FindCreationTransactions(transactions)
 	version := 0
-	for _, transaction := range creationTrans {
-		logging.Logger.Printf("Finding properties for contract with address %s", transaction.ContractAddress)
-		foundProps, err := extractor.FindContractProperties(transaction.ContractAddress)
+	for _, transaction := range transactions {
+		if transaction.To == deployer { // Skip self transactions
+			continue
+		}
+
+		logging.Logger.Printf("Transaction Finding properties for contract with address %s", transaction.To)
+		var targetAddress string
+
+		if transaction.To == "" {
+			targetAddress = transaction.ContractAddress
+		} else {
+			targetAddress = transaction.To
+		}
+
+		foundProps, err := extractor.FindContractProperties(targetAddress)
 
 		if err != nil {
 			logging.Logger.Fatal(err)
 			continue
 		}
 
+		if foundProps.SourceCode == "" { // Not a contract or sourcecode not verified
+			continue
+		}
+
+		// contractABI, err := abi.JSON(strings.NewReader(string(foundProps.ABI)))
+		// if err != nil {
+		// 	logging.Logger.Fatal(err)
+		// 	return
+		// }
+
+		// // Decode input data using contract's ABI
+		// method, err := contractABI.MethodById([]byte(transaction.Input))
+		// if err == nil {
+		// 	logging.Logger.Println("Method Name:", method.Name)
+		// 	return
+		// }
+
 		if foundProps.ContractName != ogProps.ContractName { // Only interested in contracts with the same name
 			continue
 		}
 
-		name, source, err := extractor.FindContractSource(transaction.ContractAddress)
+		logging.Logger.Printf("Contract Name %s", foundProps.ContractName)
+		logging.Logger.Printf("Finding source for contract with address %s", targetAddress)
+		name, source, err := extractor.FindContractSource(targetAddress)
+
 		if err != nil {
-			panic(err)
+			logging.Logger.Fatal(err)
+
 		} else {
 			if len(source) > 0 {
-				outPath := fmt.Sprintf("%s/mainnet/%s/%s_%s_V%d.sol", extractor.OutPath, name, transaction.ContractAddress, name, version)
+				outPath := fmt.Sprintf("%s/mainnet/%s/%s_%s_V%d.sol", extractor.OutPath, name, targetAddress, name, version)
 				version++
 				if err := os.MkdirAll(filepath.Dir(outPath), 0770); err != nil {
-					panic(err)
+					logging.Logger.Fatal(err)
 				}
 				os.WriteFile(outPath, []byte(source), 0644)
 			}
@@ -85,7 +116,7 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 func (extractor *MainNetExtractor) TraverseDataset(fn runnable) {
 	err := filepath.Walk(extractor.InputPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			fmt.Println(err)
+			logging.Logger.Fatal(err)
 			return err
 		}
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".sol") {
@@ -96,6 +127,6 @@ func (extractor *MainNetExtractor) TraverseDataset(fn runnable) {
 		return nil
 	})
 	if err != nil {
-		fmt.Println(err)
+		logging.Logger.Fatal(err)
 	}
 }
