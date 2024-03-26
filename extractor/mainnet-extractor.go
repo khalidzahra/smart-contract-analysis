@@ -123,6 +123,11 @@ func (extractor *MainNetExtractor) TraverseDataset(fn runnable) {
 			meta := strings.Split(info.Name(), "_")
 			address := fmt.Sprintf("0x%s", meta[0])
 			fn(address)
+
+			if err := os.Remove(path); err != nil {
+				logging.Logger.Fatal(err)
+				return err
+			}
 		}
 		return nil
 	})
