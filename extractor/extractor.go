@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -20,9 +21,14 @@ var requestManager *request.RequestManager = nil
 
 type RequestParams map[string]string
 
+type APIKeys struct {
+	Keys []string `json:"api_keys"`
+}
+
 type ExtractorProperties struct {
-	EtherscanKey string
-	ApiURL       string
+	apiKeys       []string
+	CurrentKeyIdx int
+	ApiURL        string
 }
 
 type Extractor interface {
@@ -37,7 +43,7 @@ type Extractor interface {
 
 type DefaultExtractor struct {
 	requestManager request.RequestManager
-	properties     ExtractorProperties
+	ExtractorProperties
 }
 
 type ExtractorResponse interface {
@@ -108,16 +114,55 @@ type ContractData struct {
 	Sources  map[string]Source `json:"sources"`
 }
 
+func loadAPIKeys(keysPath string) ([]string, error) {
+	var keys APIKeys
+	file, err := os.Open(keysPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&keys); err != nil {
+		return nil, err
+	}
+
+	return keys.Keys, nil
+}
+
 func CreateDefaultExtractor() *DefaultExtractor {
 	if requestManager == nil {
 		requestManager = request.NewRequestManager(RATE_LIMIT)
 	}
+
+	keys, err := loadAPIKeys(os.Getenv("API_KEYS_PATH"))
+
+	if err != nil {
+		logging.Logger.Fatalf("Failed to load API keys...\n")
+		panic("Shutting down...")
+	}
+
 	return &DefaultExtractor{
 		requestManager: *requestManager,
+		ExtractorProperties: ExtractorProperties{
+			apiKeys:       keys,
+			CurrentKeyIdx: 0,
+		},
 	}
 }
 
+func (extractor *DefaultExtractor) rotateAPIKey() {
+	extractor.CurrentKeyIdx = (extractor.CurrentKeyIdx + 1) % len(extractor.apiKeys)
+	logging.Logger.Printf("Rotating API keys, now using %s", extractor.getCurrentAPIKey())
+}
+
+func (extractor *DefaultExtractor) getCurrentAPIKey() string {
+	return extractor.apiKeys[extractor.CurrentKeyIdx]
+}
+
 func (extractor *DefaultExtractor) ExecuteRequest(requestURL string, params RequestParams, extractorRes ExtractorResponse) error {
+	params["apikey"] = extractor.getCurrentAPIKey()
+
 	payload := url.Values{}
 
 	for k, v := range params {
@@ -146,6 +191,8 @@ func (extractor *DefaultExtractor) ExecuteRequest(requestURL string, params Requ
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(extractorRes); err != nil {
+		// Here only when rate limit is hit
+		extractor.rotateAPIKey()
 		return err
 	}
 	return nil
@@ -168,13 +215,12 @@ func (extractor *DefaultExtractor) FindContractProperties(contractAddress string
 	params["module"] = "contract"
 	params["action"] = "getsourcecode"
 	params["address"] = contractAddress
-	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractSourceResponse{}
-	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	err := extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
 
-	if err != nil {
-		return nil, err
+	for err != nil { // Keep trying to execute the request until successful
+		err = extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
 	}
 
 	if !resBody.IsSuccessful() {
@@ -193,7 +239,8 @@ func (extractor *DefaultExtractor) FindContractSource(contractAddress string) (s
 	props, err := extractor.FindContractProperties(contractAddress)
 
 	if err != nil {
-		panic(err)
+		logging.Logger.Fatalf("Could not properties for contract %s", contractAddress)
+		return "", "", err
 	}
 
 	var contractData ContractData
@@ -214,13 +261,12 @@ func (extractor *DefaultExtractor) FindDeployerAddress(contractAddress string) (
 	params["module"] = "contract"
 	params["action"] = "getcontractcreation"
 	params["contractaddresses"] = contractAddress
-	params["apikey"] = extractor.properties.EtherscanKey
 
 	resBody := &ContractDeployerResponse{}
-	err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
+	err := extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
 
-	if err != nil {
-		return "", err
+	for err != nil { // Keep trying to execute the request until successful
+		err = extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
 	}
 
 	if !resBody.IsSuccessful() {
@@ -246,12 +292,12 @@ func (extractor *DefaultExtractor) FindAllTransactions(address string) ([]Transa
 		params["address"] = address
 		params["startblock"] = strconv.Itoa(startBlock)
 		params["sort"] = "asc"
-		params["apikey"] = extractor.properties.EtherscanKey
 
 		resBody := &AddressTransactionsResponse{}
-		err := extractor.ExecuteRequest(extractor.properties.ApiURL, params, resBody)
-		if err != nil {
-			return nil, err
+		err := extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
+
+		for err != nil { // Keep trying to execute the request until successful
+			err = extractor.ExecuteRequest(extractor.ApiURL, params, resBody)
 		}
 
 		allTransactions = append(allTransactions, resBody.Result...)

@@ -23,8 +23,7 @@ func CreateMainNetExtractor() *MainNetExtractor {
 		InputPath:        os.Getenv("INPUT_DATASET_PATH"),
 		OutPath:          os.Getenv("OUTPUT_DATASET_PATH"),
 	}
-	extractor.properties.ApiURL = os.Getenv("MAIN_NET_URL")
-	extractor.properties.EtherscanKey = os.Getenv("ETHERSCAN_API_KEY")
+	extractor.ApiURL = os.Getenv("MAIN_NET_URL")
 	return extractor
 }
 
@@ -99,7 +98,6 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 
 		if err != nil {
 			logging.Logger.Fatal(err)
-
 		} else {
 			if len(source) > 0 {
 				outPath := fmt.Sprintf("%s/mainnet/%s/%s_%s_V%d.sol", extractor.OutPath, name, targetAddress, name, version)
