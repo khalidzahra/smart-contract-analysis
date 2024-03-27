@@ -50,15 +50,38 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 	}
 
 	version := 0
-	flag := false
+	addressSet := make(map[string]bool)
+
+	// Load already known addresses for contract if previously encountered
+	dirPath := fmt.Sprintf("%s/mainnet/%s", extractor.OutPath, ogProps.ContractName)
+	_, err = os.Stat(dirPath)
+	if err == nil {
+		dirEntries, err := os.ReadDir(dirPath)
+		if err != nil {
+			fmt.Println("Error opening directory:", err)
+			return
+		}
+
+		for _, entry := range dirEntries {
+			fileName := entry.Name()
+			parts := strings.Split(fileName, "_")
+			if len(parts) < 2 {
+				continue
+			}
+			loadedAddress := parts[0]
+			addressSet[loadedAddress] = true
+		}
+	}
+
 	for _, transaction := range transactions {
-		if transaction.To == deployer || (transaction.To == address && flag) { // Skip self transactions and transactions to original contract
+		_, okTo := addressSet[transaction.To]
+		_, okCtrctAddr := addressSet[transaction.ContractAddress]
+		if transaction.To == deployer || (okTo && okCtrctAddr) { // Skip self transactions and transactions to already known contracts
+			logging.Logger.Printf("Skipping, already seen %s", transaction.To)
 			continue
 		}
 
-		if transaction.To == address {
-			flag = true
-		}
+		addressSet[transaction.To] = true // Store viewed contract address
 
 		logging.Logger.Printf("Transaction Finding properties for contract with address %s", transaction.To)
 		var targetAddress string
