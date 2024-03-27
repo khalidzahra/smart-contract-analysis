@@ -50,9 +50,14 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 	}
 
 	version := 0
+	flag := false
 	for _, transaction := range transactions {
-		if transaction.To == deployer || transaction.To == address { // Skip self transactions and transactions to original contract
+		if transaction.To == deployer || (transaction.To == address && flag) { // Skip self transactions and transactions to original contract
 			continue
+		}
+
+		if transaction.To == address {
+			flag = true
 		}
 
 		logging.Logger.Printf("Transaction Finding properties for contract with address %s", transaction.To)
