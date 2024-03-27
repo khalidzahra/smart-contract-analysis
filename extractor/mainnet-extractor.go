@@ -150,6 +150,7 @@ func (extractor *MainNetExtractor) TraverseDataset(fn runnable) {
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".sol") {
 			meta := strings.Split(info.Name(), "_")
 			address := fmt.Sprintf("0x%s", meta[0])
+			logging.Logger.Printf("Matching contract %s", path)
 			fn(address)
 
 			if err := os.Remove(path); err != nil {
