@@ -51,7 +51,7 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 
 	version := 0
 	for _, transaction := range transactions {
-		if transaction.To == deployer { // Skip self transactions
+		if transaction.To == deployer || transaction.To == address { // Skip self transactions and transactions to original contract
 			continue
 		}
 
