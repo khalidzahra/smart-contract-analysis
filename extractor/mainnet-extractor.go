@@ -70,6 +70,7 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 			}
 			loadedAddress := parts[0]
 			addressSet[loadedAddress] = true
+			version++
 		}
 	}
 
