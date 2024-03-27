@@ -13,8 +13,9 @@ type runnable func(string)
 
 type MainNetExtractor struct {
 	DefaultExtractor
-	InputPath string
-	OutPath   string
+	InputPath      string
+	OutPath        string
+	knownDeployers map[string][]string
 }
 
 func CreateMainNetExtractor() *MainNetExtractor {
@@ -22,6 +23,7 @@ func CreateMainNetExtractor() *MainNetExtractor {
 		DefaultExtractor: *CreateDefaultExtractor(),
 		InputPath:        os.Getenv("INPUT_DATASET_PATH"),
 		OutPath:          os.Getenv("OUTPUT_DATASET_PATH"),
+		knownDeployers:   make(map[string][]string),
 	}
 	extractor.ApiURL = os.Getenv("MAIN_NET_URL")
 	return extractor
@@ -40,6 +42,18 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 	if err != nil {
 		logging.Logger.Fatal(err)
 		return
+	}
+
+	_, ok := extractor.knownDeployers[deployer]
+	if ok {
+		for _, contract := range extractor.knownDeployers[deployer] {
+			if contract == ogProps.ContractName { // We have already seen this contract for this deployer, no need to check again
+				return
+			}
+		}
+		extractor.knownDeployers[deployer] = append(extractor.knownDeployers[deployer], ogProps.ContractName)
+	} else {
+		extractor.knownDeployers[deployer] = []string{ogProps.ContractName}
 	}
 
 	logging.Logger.Printf("Finding all transactions for address %s", deployer)
