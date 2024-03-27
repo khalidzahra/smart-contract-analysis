@@ -130,7 +130,7 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 			logging.Logger.Fatal(err)
 		} else {
 			if len(source) > 0 {
-				outPath := fmt.Sprintf("%s/mainnet/%s/%s_%s_V%d.sol", extractor.OutPath, name, targetAddress, name, version)
+				outPath := fmt.Sprintf("%s/mainnet/%s/%s/%s_%s_V%d.sol", extractor.OutPath, name, deployer, targetAddress, name, version)
 				version++
 				if err := os.MkdirAll(filepath.Dir(outPath), 0770); err != nil {
 					logging.Logger.Fatal(err)
