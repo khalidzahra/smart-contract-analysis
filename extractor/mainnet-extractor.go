@@ -82,7 +82,8 @@ func (extractor *MainNetExtractor) MatchContracts(address string) {
 			continue
 		}
 
-		addressSet[transaction.To] = true // Store viewed contract address
+		addressSet[transaction.To] = true              // Store viewed contract address
+		addressSet[transaction.ContractAddress] = true // Store viewed contract address
 
 		logging.Logger.Printf("Transaction Finding properties for contract with address %s", transaction.To)
 		var targetAddress string
