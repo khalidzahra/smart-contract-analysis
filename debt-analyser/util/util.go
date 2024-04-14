@@ -8,53 +8,6 @@ import (
 	"strings"
 )
 
-var fp *excelize.File
-var currRow = 1
-
-func CreateFileIfNotExists() {
-	filePath := "out_data/total_debt.xlsx"
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		fp = excelize.NewFile()
-		fp.SaveAs(filePath)
-		fp, err = excelize.OpenFile(filePath)
-		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return
-		}
-	} else {
-		fp, err = excelize.OpenFile(filePath)
-		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return
-		}
-	}
-}
-
-func ExportTotalDebtToExcel(contractDeployer, contractName string, debt []int) {
-	CreateFileIfNotExists()
-	sheetName := "Sheet1"
-
-	cell, _ := excelize.CoordinatesToCellName(1, currRow)
-	fp.SetCellValue(sheetName, cell, contractDeployer)
-	cell, _ = excelize.CoordinatesToCellName(2, currRow)
-	fp.SetCellValue(sheetName, cell, contractName)
-
-	for i, debtAmt := range debt {
-		cell, _ = excelize.CoordinatesToCellName(3+i, currRow)
-		fp.SetCellValue(sheetName, cell, debtAmt)
-	}
-
-	currRow++
-}
-
-func SaveExcelFile(filePath string) {
-	err := fp.SaveAs(filePath)
-	if err != nil {
-		fmt.Println("Error saving file:", err)
-		return
-	}
-}
-
 func ExportCommentsToExcel(contractName string, contractVersion int, comments []string) {
 	f := excelize.NewFile()
 
