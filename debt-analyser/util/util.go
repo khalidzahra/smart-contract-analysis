@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func ExportTotalDebtToExcel(contractName string, debt []int) {
+func ExportTotalDebtToExcel(contractDeployer, contractName string, debt []int) {
 	filePath := "out/total_debt.xlsx"
 	var f *excelize.File
 	var err error
@@ -34,10 +34,12 @@ func ExportTotalDebtToExcel(contractName string, debt []int) {
 	}
 
 	cell, _ := excelize.CoordinatesToCellName(1, currRow)
+	f.SetCellValue(sheetName, cell, contractDeployer)
+	cell, _ = excelize.CoordinatesToCellName(2, currRow)
 	f.SetCellValue(sheetName, cell, contractName)
 
 	for i, debtAmt := range debt {
-		cell, _ = excelize.CoordinatesToCellName(2+i, currRow)
+		cell, _ = excelize.CoordinatesToCellName(3+i, currRow)
 		f.SetCellValue(sheetName, cell, debtAmt)
 	}
 

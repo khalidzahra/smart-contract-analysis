@@ -93,7 +93,8 @@ func readFilesInDirectory(dirPath string) error {
 	if foundContract {
 		pathSplit := strings.Split(dirPath, string(filepath.Separator))
 		contractName := pathSplit[len(pathSplit)-2]
-		util.ExportTotalDebtToExcel(contractName, debtEvolution)
+		contractDeployer := pathSplit[len(pathSplit)-1]
+		util.ExportTotalDebtToExcel(contractDeployer, contractName, debtEvolution)
 	}
 
 	return nil
