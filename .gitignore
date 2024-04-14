@@ -1,3 +1,6 @@
 .env
 *.sol
 dataset
+.idea
+versioned-smart-contracts
+out
