@@ -8,42 +8,47 @@ import (
 	"strings"
 )
 
-func ExportTotalDebtToExcel(contractDeployer, contractName string, debt []int) {
-	filePath := "out/total_debt.xlsx"
-	var f *excelize.File
-	var err error
+var fp *excelize.File
+var currRow = 1
 
-	sheetName := "Sheet1"
-	currRow := 1
-
+func CreateFileIfNotExists() {
+	filePath := "out_data/total_debt.xlsx"
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		f = excelize.NewFile()
-	} else {
-		f, err = excelize.OpenFile(filePath)
+		fp = excelize.NewFile()
+		fp.SaveAs(filePath)
+		fp, err = excelize.OpenFile(filePath)
 		if err != nil {
 			fmt.Println("Error opening file:", err)
 			return
 		}
-		rows, err := f.GetRows(sheetName)
+	} else {
+		fp, err = excelize.OpenFile(filePath)
 		if err != nil {
-			fmt.Println("Error reading rows:", err)
+			fmt.Println("Error opening file:", err)
 			return
 		}
-
-		currRow = len(rows) + 1
 	}
+}
+
+func ExportTotalDebtToExcel(contractDeployer, contractName string, debt []int) {
+	CreateFileIfNotExists()
+	sheetName := "Sheet1"
 
 	cell, _ := excelize.CoordinatesToCellName(1, currRow)
-	f.SetCellValue(sheetName, cell, contractDeployer)
+	fp.SetCellValue(sheetName, cell, contractDeployer)
 	cell, _ = excelize.CoordinatesToCellName(2, currRow)
-	f.SetCellValue(sheetName, cell, contractName)
+	fp.SetCellValue(sheetName, cell, contractName)
 
 	for i, debtAmt := range debt {
 		cell, _ = excelize.CoordinatesToCellName(3+i, currRow)
-		f.SetCellValue(sheetName, cell, debtAmt)
+		fp.SetCellValue(sheetName, cell, debtAmt)
 	}
 
-	err = f.SaveAs(filePath)
+	currRow++
+}
+
+func SaveExcelFile(filePath string) {
+	err := fp.SaveAs(filePath)
 	if err != nil {
 		fmt.Println("Error saving file:", err)
 		return
@@ -62,7 +67,7 @@ func ExportCommentsToExcel(contractName string, contractVersion int, comments []
 		f.SetCellValue(sheetName, cell, comment)
 	}
 
-	outDir := fmt.Sprintf("out/contracts/%s", contractName)
+	outDir := fmt.Sprintf("out_data/contracts/%s", contractName)
 	err := os.MkdirAll(outDir, 0755)
 	if err != nil {
 		fmt.Println("Error creating directory:", err)

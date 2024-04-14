@@ -36,16 +36,24 @@ type fileVersion struct {
 	version int
 }
 
+var start bool = true
+
 func main() {
+	counter := 0
 	startDir := path.Join("versioned-smart-contracts", "mainnet")
 	err := filepath.Walk(startDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
+			counter++
 			err := readFilesInDirectory(path)
 			if err != nil {
 				return err
+			}
+			if counter == 5000 {
+				util.SaveExcelFile("out_data/total_debt.xlsx")
+				panic("DONE")
 			}
 		}
 		return nil
@@ -54,6 +62,8 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error walking through directories: %v\n", err)
 	}
+
+	util.SaveExcelFile("out_data/total_debt.xlsx")
 }
 
 func readFilesInDirectory(dirPath string) error {
@@ -68,8 +78,17 @@ func readFilesInDirectory(dirPath string) error {
 
 	for _, file := range files {
 		if !file.IsDir() {
+			filePath := path.Join(dirPath, file.Name())
+			if !start {
+				splPath := strings.Split(filePath, string(filepath.Separator))
+				contractName := splPath[len(splPath)-2]
+				if contractName == "FB" {
+					start = true
+				} else {
+					fmt.Printf("Skipping contract %s\n", contractName)
+				}
+			}
 			foundContract = true
-			filePath := filepath.Join(dirPath, file.Name())
 			version, err := util.ExtractVersion(file.Name())
 			if err != nil {
 				fmt.Printf("Error extracting version for file %s: %v\n", file.Name(), err)
@@ -86,7 +105,7 @@ func readFilesInDirectory(dirPath string) error {
 
 	for _, fv := range fileVersions {
 		fmt.Println("Processing file:", fv.path)
-		debt := readFile(fv.path)
+		debt := readFile(fv.path, start)
 		debtEvolution = append(debtEvolution, debt)
 	}
 
@@ -94,13 +113,15 @@ func readFilesInDirectory(dirPath string) error {
 		pathSplit := strings.Split(dirPath, string(filepath.Separator))
 		contractName := pathSplit[len(pathSplit)-2]
 		contractDeployer := pathSplit[len(pathSplit)-1]
-		util.ExportTotalDebtToExcel(contractDeployer, contractName, debtEvolution)
+		if start {
+			util.ExportTotalDebtToExcel(contractDeployer, contractName, debtEvolution)
+		}
 	}
 
 	return nil
 }
 
-func readFile(filePath string) int {
+func readFile(filePath string, save bool) int {
 	totalDebt := 0
 
 	content, err := os.ReadFile(filePath)
@@ -141,7 +162,9 @@ func readFile(filePath string) int {
 	contractName := contractNameVersion[:versionIndex-1]
 	contractVersionStr := contractNameVersion[versionIndex:]
 	contractVersion, err := strconv.Atoi(contractVersionStr)
-	util.ExportCommentsToExcel(contractName, contractVersion, comments)
+	if save {
+		go util.ExportCommentsToExcel(contractName, contractVersion, comments)
+	}
 	return totalDebt
 }
 
