@@ -47,13 +47,14 @@ def compute_statistics(csv_file_path):
                 anomalous_contracts.append(row[0] + " " + row[1])
             else:
                 dataset_size += 1
+                 # ========== debt ==========
+                total_initial_debt += int(row[2]) # third column contains the first version
             if versions in version_count:
                 version_count[versions] += 1
             else:
                 version_count[versions] = 1
 
-            # ========== debt ==========
-            total_initial_debt += row[3] # third column contains the first version
+           
     
     print("DATASET SIZE:", dataset_size)
     print('\n\n')
@@ -61,4 +62,14 @@ def compute_statistics(csv_file_path):
     print('\n\n')
     print("ANOMALOUS CONTRACTS:\n", '\n'.join(anomalous_contracts))
     print('\n\n')
-    print("Average Initial Debt:\n", total_i
+    print("Average Initial Debt:\n", total_initial_debt / dataset_size)
+    print('\n\n')
+    sorted_keys = sorted(version_count.keys())
+    print("Median Initial Debt:\n", sorted_keys[(len(sorted_keys) - 1) // 2])
+
+    create_cdf_from_dict(version_count, xlabel="Number of Versions", title="", save="version_num_cdf")
+
+
+
+csv_file_path = '../out_data/total_debt.csv'
+compute_statistics(csv_file_path)
