@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/khalidzahra/debt-analyzer/file"
-	"github.com/khalidzahra/debt-analyzer/util"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/khalidzahra/debt-analyzer/file"
+	"github.com/khalidzahra/debt-analyzer/util"
 )
 
 type ContractData struct {
@@ -41,7 +41,7 @@ var outFile *file.CSVFile
 var count = 0
 
 func main() {
-	outFile = file.CreateCSVFile("out_data/total_debt.csv")
+	outFile = file.CreateCSVFile("debt_data/total_debt.csv")
 	startDir := path.Join("versioned-smart-contracts", "mainnet")
 	err := filepath.Walk(startDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -148,12 +148,11 @@ func readFile(filePath string) int {
 		totalDebt += len(comments)
 	}
 
-	splPath := strings.Split(filePath[:len(filePath)-4], string(filepath.Separator))
+	splPath := strings.Split(strings.ReplaceAll(filePath, string(filepath.Separator), "/"), "/")
 	contractNameVersion := splPath[len(splPath)-1]
-	versionIndex := util.GetVersionIndex(contractNameVersion)
-	contractName := contractNameVersion[:versionIndex-1]
-	contractVersionStr := contractNameVersion[versionIndex:]
-	contractVersion, err := strconv.Atoi(contractVersionStr)
+	contractVersion, err := util.ExtractVersion(contractNameVersion)
+	// ctrct_name/deployer/ctrct_file
+	contractName := splPath[len(splPath)-3] + "_" + splPath[len(splPath)-2]
 	go util.ExportCommentsToExcel(contractName, contractVersion, comments)
 	return totalDebt
 }

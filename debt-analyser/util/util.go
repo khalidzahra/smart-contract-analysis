@@ -20,7 +20,7 @@ func ExportCommentsToExcel(contractName string, contractVersion int, comments []
 		f.SetCellValue(sheetName, cell, comment)
 	}
 
-	outDir := fmt.Sprintf("out_data/contracts/%s", contractName)
+	outDir := fmt.Sprintf("debt_data/contracts/%s", contractName)
 	err := os.MkdirAll(outDir, 0755)
 	if err != nil {
 		fmt.Println("Error creating directory:", err)

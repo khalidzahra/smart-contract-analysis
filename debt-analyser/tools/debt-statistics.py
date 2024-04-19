@@ -71,5 +71,5 @@ def compute_statistics(csv_file_path):
 
 
 
-csv_file_path = '../out_data/total_debt.csv'
+csv_file_path = '../debt_data/total_debt.csv'
 compute_statistics(csv_file_path)
