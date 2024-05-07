@@ -79,6 +79,7 @@ func compareFiles(file1, file2 string) (int, int, map[string]int, map[string]int
 func processDirectory(rootDir string) {
 	remDict := make(map[string][2]int)
 	var dirs []string
+	addCount := 0
 
 	filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -108,6 +109,9 @@ func processDirectory(rootDir string) {
 			if i == 0 {
 				remDict[dir] = [2]int{len(count1), 0}
 			}
+			if i != 0 && added > 0 {
+				addCount++
+			}
 			current := remDict[dir]
 			remDict[dir] = [2]int{current[0] + added, current[1] + removed}
 		}
@@ -121,9 +125,10 @@ func processDirectory(rootDir string) {
 	}
 
 	fmt.Printf("Occurrence of debt removal: %f%%\n", float64(removedInstances)*100/float64(len(remDict)))
+	fmt.Printf("Occurrence of debt addition: %f%%\n", float64(addCount)*100/float64(len(remDict)))
 }
 
 func main() {
-	rootDir := "../debt_data/contracts"
+	rootDir := "../debt_data_latest/contracts"
 	processDirectory(rootDir)
 }

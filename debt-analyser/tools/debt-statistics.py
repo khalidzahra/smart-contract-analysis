@@ -27,6 +27,49 @@ def create_cdf_from_dict(data_dict, ylabel="CDF", xlabel="Value", title="Cumulat
     else:
         plt.savefig(save)
 
+def find_median_key(input_dict):
+    # First, we need to sort the keys based on their counts
+    sorted_keys = sorted(input_dict, key=input_dict.get)
+    
+    # Calculate the total count
+    total_count = sum(input_dict.values())
+    
+    # Find the median
+    median_pos = total_count // 2
+    if total_count % 2 == 0:
+        # If the total count is even, we need to find the two middle keys
+        # and calculate their average (for numerical keys) or just return them (for non-numerical keys)
+        temp_count = 0
+        for key in sorted_keys:
+            temp_count += input_dict[key]
+            if temp_count >= median_pos:
+                lower_key = key
+                break
+        temp_count = 0
+        for key in reversed(sorted_keys):
+            temp_count += input_dict[key]
+            if temp_count >= median_pos:
+                upper_key = key
+                break
+        # Assuming the keys are numerical. If not, you might need to adjust this logic.
+        try:
+            median_key = (float(lower_key) + float(upper_key)) / 2
+        except ValueError:
+            # If keys are not numerical, return them as a tuple
+            median_key = (lower_key, upper_key)
+    else:
+        # If the total count is odd, find the middle key
+        temp_count = 0
+        for key in sorted_keys:
+            temp_count += input_dict[key]
+            if temp_count > median_pos:
+                median_key = key
+                break
+    
+    return median_key
+
+
+
 def compute_statistics(csv_file_path):
     dataset_size = 0
     anomalous_contracts = []
@@ -64,12 +107,12 @@ def compute_statistics(csv_file_path):
     print('\n\n')
     print("Average Initial Debt:\n", total_initial_debt / dataset_size)
     print('\n\n')
-    sorted_keys = sorted(version_count.keys())
-    print("Median Initial Debt:\n", sorted_keys[(len(sorted_keys) - 1) // 2])
+    median = find_median_key(version_count)
+    print("Median Initial Debt:\n", median)
 
     create_cdf_from_dict(version_count, xlabel="Number of Versions", title="", save="version_num_cdf")
 
 
 
-csv_file_path = '../debt_data/total_debt.csv'
+csv_file_path = '../debt_data_latest/total_debt.csv'
 compute_statistics(csv_file_path)
